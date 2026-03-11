@@ -455,51 +455,7 @@
   }
   .empty .icon { font-size: 36px; margin-bottom: 10px; }
 
-  /* ── CONFIG MODAL ── */
-  #config-overlay {
-    position: fixed; inset: 0; z-index: 100;
-    background: rgba(0,0,0,.7);
-    display: flex; align-items: center; justify-content: center;
-    backdrop-filter: blur(4px);
-  }
 
-  #config-box {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 32px;
-    width: 460px;
-    max-width: 95vw;
-  }
-
-  #config-box h2 {
-    font-family: 'Syne', sans-serif;
-    font-size: 18px; font-weight: 800;
-    margin-bottom: 8px;
-  }
-
-  #config-box p {
-    font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5;
-  }
-
-  #config-box input {
-    margin-bottom: 12px;
-  }
-
-  .btn-primary {
-    width: 100%; padding: 10px;
-    background: var(--accent);
-    border: none; border-radius: 6px;
-    color: #fff; font-family: 'Syne', sans-serif;
-    font-size: 14px; font-weight: 700;
-    cursor: pointer; transition: background .2s;
-  }
-  .btn-primary:hover { background: var(--accent2); }
-
-  .help-text {
-    font-size: 11px; color: var(--muted);
-    margin-top: 10px; text-align: center; line-height: 1.5;
-  }
 
   /* ── RESPONSIVE ── */
   @media (max-width: 768px) {
@@ -511,27 +467,6 @@
 </style>
 </head>
 <body>
-
-<!-- CONFIG MODAL -->
-<div id="config-overlay">
-  <div id="config-box">
-    <h2>⚙️ Configurar Painel</h2>
-    <p>Cole o <strong>ID da sua planilha consolidada</strong> do Google Sheets e a <strong>API Key</strong> do Google Cloud para começar.</p>
-    <div class="filter-group">
-      <label>ID da Planilha</label>
-      <input type="text" id="input-sheet-id" placeholder="Ex: 1aBcDeFgHiJkLmNoPqRsTuVwXyZ"/>
-    </div>
-    <div class="filter-group">
-      <label>Google API Key</label>
-      <input type="text" id="input-api-key" placeholder="Ex: AIzaSyB..."/>
-    </div>
-    <button class="btn-primary" onclick="saveConfig()">Carregar Dados</button>
-    <p class="help-text">
-      Sua planilha precisa estar com acesso <strong>"Qualquer pessoa com o link"</strong>.<br>
-      Veja como obter a API Key: <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent)">Google Cloud Console</a>
-    </p>
-  </div>
-</div>
 
 <!-- HEADER -->
 <header>
@@ -545,7 +480,7 @@
       <span id="status-dot"></span>
       <span id="status-text">Aguardando configuração</span>
     </div>
-    <button class="btn-export" onclick="showConfig()" style="font-size:13px;">⚙️</button>
+
   </div>
 </header>
 
@@ -672,9 +607,9 @@
 
 <script>
 // ─── CONFIG ───────────────────────────────────────────────
-let SHEET_ID = localStorage.getItem('ecit_sheet_id') || '';
-let API_KEY  = localStorage.getItem('ecit_api_key')  || '';
-const SHEET_NAME = 'CONSOLIDADO';
+const SHEET_ID = '1ppWEypYFtu4V93gsPFgo1RC7AQA-NZE_9LSvyMPmGsw';
+const GID      = '0'; // gid da aba CONSOLIDADO — ajuste se necessário
+const CSV_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 
 // Colunas da planilha consolidada (índice base 0)
 const COL = {
@@ -696,30 +631,28 @@ const PAGE_SIZE = 24;
 let sortCol = -1, sortAsc = true;
 
 // ─── INIT ─────────────────────────────────────────────────
-window.onload = () => {
-  if (SHEET_ID && API_KEY) {
-    document.getElementById('config-overlay').style.display = 'none';
-    document.getElementById('input-sheet-id').value = SHEET_ID;
-    document.getElementById('input-api-key').value = API_KEY;
-    loadData();
-  } else {
-    document.getElementById('input-sheet-id').value = SHEET_ID;
-    document.getElementById('input-api-key').value = API_KEY;
+window.onload = () => loadData();
+
+// ─── PARSE CSV ────────────────────────────────────────────
+function parseCSV(text) {
+  const rows = [];
+  let row = [], cell = '', inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuote) {
+      if (ch === '"' && text[i+1] === '"') { cell += '"'; i++; }
+      else if (ch === '"') inQuote = false;
+      else cell += ch;
+    } else {
+      if (ch === '"') { inQuote = true; }
+      else if (ch === ',') { row.push(cell); cell = ''; }
+      else if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+      else if (ch === '\r') { /* ignora */ }
+      else cell += ch;
+    }
   }
-};
-
-function showConfig() {
-  document.getElementById('config-overlay').style.display = 'flex';
-}
-
-function saveConfig() {
-  SHEET_ID = document.getElementById('input-sheet-id').value.trim();
-  API_KEY  = document.getElementById('input-api-key').value.trim();
-  if (!SHEET_ID || !API_KEY) { alert('Preencha os dois campos.'); return; }
-  localStorage.setItem('ecit_sheet_id', SHEET_ID);
-  localStorage.setItem('ecit_api_key', API_KEY);
-  document.getElementById('config-overlay').style.display = 'none';
-  loadData();
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows;
 }
 
 // ─── LOAD DATA ────────────────────────────────────────────
@@ -729,15 +662,12 @@ async function loadData() {
   document.getElementById('content').style.display = 'none';
 
   try {
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(SHEET_NAME)}?key=${API_KEY}`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error?.message || 'Erro ao acessar planilha');
-    }
-    const json = await res.json();
-    const rows = json.values || [];
-    if (rows.length < 2) throw new Error('Planilha vazia ou sem dados na aba CONSOLIDADO');
+    const res = await fetch(CSV_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status} — verifique se a planilha está pública`);
+    const text = await res.text();
+    const rows = parseCSV(text);
+
+    if (rows.length < 2) throw new Error('Planilha vazia ou aba CONSOLIDADO não encontrada');
 
     // Pula a linha de cabeçalho
     allData = rows.slice(1).filter(r => r[COL.DOCENTE] && r[COL.DOCENTE].toString().trim() !== '');
@@ -753,8 +683,13 @@ async function loadData() {
   } catch(e) {
     document.getElementById('loading').style.display = 'none';
     setStatus('', `Erro: ${e.message}`);
-    alert(`Erro ao carregar dados:\n${e.message}\n\nVerifique o ID da planilha e a API Key.`);
-    showConfig();
+    document.getElementById('loading').style.display = 'flex';
+    document.getElementById('loading').innerHTML = `
+      <div style="font-size:32px">⚠️</div>
+      <div style="color:var(--accent);font-weight:600">Erro ao carregar dados</div>
+      <div style="color:var(--muted);font-size:12px;text-align:center;max-width:320px">${e.message}</div>
+      <button class="btn-export" onclick="loadData()" style="margin-top:8px">↺ Tentar novamente</button>
+    `;
   }
 }
 
