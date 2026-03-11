@@ -645,7 +645,7 @@ async function loadData() {
     if (!Array.isArray(rows) || rows.length < 2) throw new Error('Dados inválidos ou aba CONSOLIDADO vazia');
 
     // Pula a linha de cabeçalho
-    allData = rows.slice(1).filter(r => r[COL.DOCENTE] && r[COL.DOCENTE].toString().trim() !== '');
+    allData = rows.slice(1).filter(r => r[COL.DOCENTE] && String(r[COL.DOCENTE]).trim() !== '');
 
     populateFilters();
     updateStats(allData);
@@ -677,10 +677,10 @@ function setStatus(type, msg) {
 // ─── STATS ────────────────────────────────────────────────
 function updateStats(data) {
   document.getElementById('st-total').textContent = data.length.toLocaleString('pt-BR');
-  document.getElementById('st-profs').textContent = new Set(data.map(r => r[COL.CPF] || r[COL.DOCENTE])).size.toLocaleString('pt-BR');
-  document.getElementById('st-escolas').textContent = new Set(data.map(r => r[COL.ESCOLA])).size.toLocaleString('pt-BR');
-  document.getElementById('st-gres').textContent = new Set(data.map(r => r[COL.GRE])).size.toLocaleString('pt-BR');
-  document.getElementById('st-municipios').textContent = new Set(data.map(r => r[COL.MUNICIPIO])).size.toLocaleString('pt-BR');
+  document.getElementById('st-profs').textContent = new Set(data.map(r => String(r[COL.CPF]||r[COL.DOCENTE]||''))).size.toLocaleString('pt-BR');
+  document.getElementById('st-escolas').textContent = new Set(data.map(r => String(r[COL.ESCOLA]||''))).size.toLocaleString('pt-BR');
+  document.getElementById('st-gres').textContent = new Set(data.map(r => String(r[COL.GRE]||''))).size.toLocaleString('pt-BR');
+  document.getElementById('st-municipios').textContent = new Set(data.map(r => String(r[COL.MUNICIPIO]||''))).size.toLocaleString('pt-BR');
 }
 
 // ─── POPULATE FILTERS ─────────────────────────────────────
@@ -690,7 +690,7 @@ function populateFilters() {
     const first = sel.options[0];
     sel.innerHTML = '';
     sel.appendChild(first);
-    const vals = [...new Set(allData.map(r => (r[colIdx]||'').trim()))].filter(Boolean).sort();
+    const vals = [...new Set(allData.map(r => String(r[colIdx]||'').trim()))].filter(Boolean).sort();
     vals.forEach(v => {
       const o = document.createElement('option');
       o.value = v; o.textContent = v;
@@ -717,13 +717,13 @@ function applyFilters() {
   const turma     = document.getElementById('f-turma').value;
 
   filteredData = allData.filter(r => {
-    if (gre       && (r[COL.GRE]||'').trim() !== gre) return false;
-    if (municipio && (r[COL.MUNICIPIO]||'').trim() !== municipio) return false;
-    if (escola    && (r[COL.ESCOLA]||'').trim() !== escola) return false;
-    if (comp      && (r[COL.COMPONENTE]||'').trim() !== comp) return false;
-    if (serie     && (r[COL.SERIE]||'').trim() !== serie) return false;
-    if (turma     && (r[COL.TURMA]||'').trim() !== turma) return false;
-    if (prof      && !(r[COL.DOCENTE]||'').toLowerCase().includes(prof)) return false;
+    if (gre       && String(r[COL.GRE]||'').trim() !== gre) return false;
+    if (municipio && String(r[COL.MUNICIPIO]||'').trim() !== municipio) return false;
+    if (escola    && String(r[COL.ESCOLA]||'').trim() !== escola) return false;
+    if (comp      && String(r[COL.COMPONENTE]||'').trim() !== comp) return false;
+    if (serie     && String(r[COL.SERIE]||'').trim() !== serie) return false;
+    if (turma     && String(r[COL.TURMA]||'').trim() !== turma) return false;
+    if (prof      && !String(r[COL.DOCENTE]||'').toLowerCase().includes(prof)) return false;
     return true;
   });
 
@@ -811,12 +811,12 @@ function renderCards(data) {
 
   container.innerHTML = Object.entries(byProf).map(([key, rows]) => {
     const r = rows[0];
-    const nome = (r[COL.DOCENTE]||'').trim();
+    const nome = String(r[COL.DOCENTE]||'').trim();
     const initials = nome.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
-    const componentes = [...new Set(rows.map(x => (x[COL.COMPONENTE]||'').trim()).filter(Boolean))];
+    const componentes = [...new Set(rows.map(x => String(x[COL.COMPONENTE]||'').trim()).filter(Boolean))];
     const turmas = [...new Set(rows.map(x => `${x[COL.SERIE]||''} ${x[COL.TURMA]||''}`.trim()).filter(Boolean))];
-    const vinculo = (r[COL.VINCULO]||'').trim();
-    const funcao  = (r[COL.FUNCAO]||'').trim();
+    const vinculo = String(r[COL.VINCULO]||'').trim();
+    const funcao  = String(r[COL.FUNCAO]||'').trim();
 
     return `<div class="prof-card">
       <div class="card-header">
