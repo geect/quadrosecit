@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Painel ECIT — Quadro Demonstrativo de Pessoal</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1f2937;
+    --border: #30363d;
+    --accent: #f97316;
+    --accent2: #fb923c;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --green: #3fb950;
+    --blue: #58a6ff;
+    --tag-bg: #1f3244;
+    --tag-border: #1d4ed8;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── NOISE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: relative;
+    z-index: 10;
+    padding: 28px 40px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: linear-gradient(135deg, #161b22 0%, #0d1117 100%);
+  }
+
+  .header-icon {
+    width: 44px; height: 44px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    box-shadow: 0 0 20px rgba(249,115,22,0.35);
+  }
+
+  .header-text h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    letter-spacing: -0.4px;
+    line-height: 1.2;
+  }
+
+  .header-text span {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  #status-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 5px 12px;
+    border-radius: 20px;
+  }
+
+  #status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background .3s;
+  }
+
+  #status-dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  #status-dot.loading { background: var(--accent); animation: pulse 1s infinite; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── STATS BAR ── */
+  #stats-bar {
+    position: relative; z-index: 10;
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    overflow-x: auto;
+  }
+
+  .stat-item {
+    padding: 14px 28px;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 2px;
+    min-width: 140px;
+  }
+
+  .stat-item .val {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px; font-weight: 700;
+    color: var(--accent);
+  }
+
+  .stat-item .lbl {
+    font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px;
+  }
+
+  /* ── LAYOUT ── */
+  .layout {
+    position: relative; z-index: 10;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: calc(100vh - 140px);
+  }
+
+  /* ── SIDEBAR FILTERS ── */
+  aside {
+    border-right: 1px solid var(--border);
+    padding: 20px 16px;
+    display: flex; flex-direction: column; gap: 6px;
+    overflow-y: auto;
+    max-height: calc(100vh - 140px);
+    position: sticky; top: 0;
+  }
+
+  .filter-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted);
+    padding: 10px 4px 6px;
+  }
+
+  .filter-title:first-child { padding-top: 0; }
+
+  .filter-group { margin-bottom: 4px; }
+
+  .filter-group label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    padding-left: 2px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+
+  select, input[type=text] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color .2s;
+    appearance: none;
+  }
+
+  select:focus, input[type=text]:focus {
+    border-color: var(--accent);
+  }
+
+  select option { background: var(--surface2); }
+
+  .search-wrap { position: relative; }
+  .search-wrap input { padding-left: 30px; }
+  .search-wrap .icon {
+    position: absolute; left: 9px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted); font-size: 13px;
+    pointer-events: none;
+  }
+
+  .btn-clear {
+    width: 100%; margin-top: 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    transition: all .2s;
+  }
+  .btn-clear:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── MAIN CONTENT ── */
+  main {
+    padding: 20px 24px;
+    overflow: auto;
+  }
+
+  /* ── TOOLBAR ── */
+  .toolbar {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .view-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .view-btn {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    padding: 7px 14px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    transition: all .2s;
+    display: flex; align-items: center; gap: 5px;
+  }
+
+  .view-btn.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .result-count {
+    font-size: 13px; color: var(--muted);
+    margin-left: auto;
+  }
+
+  .result-count strong { color: var(--text); }
+
+  .btn-export {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    transition: all .2s;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .btn-export:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── CARDS VIEW ── */
+  #cards-view {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+  }
+
+  .prof-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color .2s, transform .2s;
+    cursor: pointer;
+  }
+
+  .prof-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .card-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+
+  .card-avatar {
+    width: 38px; height: 38px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent) 0%, #c2410c 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 15px; color: #fff;
+    flex-shrink: 0;
+  }
+
+  .card-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 14px;
+    line-height: 1.3;
+    margin-bottom: 3px;
+  }
+
+  .card-meta {
+    font-size: 11px; color: var(--muted);
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+
+  .card-body {
+    padding: 12px 16px;
+    display: flex; flex-direction: column; gap: 7px;
+  }
+
+  .card-row {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 12px;
+  }
+
+  .card-row .lbl {
+    color: var(--muted); min-width: 80px; flex-shrink: 0;
+    font-size: 11px; text-transform: uppercase; letter-spacing: .4px;
+    padding-top: 1px;
+  }
+
+  .card-row .val { color: var(--text); line-height: 1.4; }
+
+  .tag {
+    display: inline-block;
+    background: var(--tag-bg);
+    border: 1px solid var(--tag-border);
+    color: var(--blue);
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin: 1px 2px 1px 0;
+  }
+
+  .tag.green { background: #0d2818; border-color: #166534; color: var(--green); }
+  .tag.orange { background: #2d1a0d; border-color: #9a3412; color: var(--accent); }
+
+  .card-footer {
+    padding: 8px 16px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+
+  /* ── TABLE VIEW ── */
+  #table-view { display: none; }
+
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  thead tr {
+    background: var(--surface2);
+    position: sticky; top: 0; z-index: 5;
+  }
+
+  th {
+    padding: 10px 14px;
+    text-align: left;
+    font-family: 'Syne', sans-serif;
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  th:hover { color: var(--accent); }
+
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tbody tr:hover { background: rgba(249,115,22,.05); }
+
+  /* ── PAGINATION ── */
+  .pagination {
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px; margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  .page-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    transition: all .2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .page-btn:hover, .page-btn.active {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+  }
+
+  .page-btn:disabled { opacity: .3; cursor: default; }
+
+  /* ── LOADING / EMPTY ── */
+  #loading {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 80px 20px; gap: 16px; color: var(--muted);
+  }
+
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty {
+    text-align: center; padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty .icon { font-size: 36px; margin-bottom: 10px; }
+
+  /* ── CONFIG MODAL ── */
+  #config-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,.7);
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+
+  #config-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    width: 460px;
+    max-width: 95vw;
+  }
+
+  #config-box h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px; font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  #config-box p {
+    font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5;
+  }
+
+  #config-box input {
+    margin-bottom: 12px;
+  }
+
+  .btn-primary {
+    width: 100%; padding: 10px;
+    background: var(--accent);
+    border: none; border-radius: 6px;
+    color: #fff; font-family: 'Syne', sans-serif;
+    font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: background .2s;
+  }
+  .btn-primary:hover { background: var(--accent2); }
+
+  .help-text {
+    font-size: 11px; color: var(--muted);
+    margin-top: 10px; text-align: center; line-height: 1.5;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    .layout { grid-template-columns: 1fr; }
+    aside { max-height: none; position: static; border-right: none; border-bottom: 1px solid var(--border); }
+    header { padding: 16px 20px; }
+    main { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- CONFIG MODAL -->
+<div id="config-overlay">
+  <div id="config-box">
+    <h2>⚙️ Configurar Painel</h2>
+    <p>Cole o <strong>ID da sua planilha consolidada</strong> do Google Sheets e a <strong>API Key</strong> do Google Cloud para começar.</p>
+    <div class="filter-group">
+      <label>ID da Planilha</label>
+      <input type="text" id="input-sheet-id" placeholder="Ex: 1aBcDeFgHiJkLmNoPqRsTuVwXyZ"/>
+    </div>
+    <div class="filter-group">
+      <label>Google API Key</label>
+      <input type="text" id="input-api-key" placeholder="Ex: AIzaSyB..."/>
+    </div>
+    <button class="btn-primary" onclick="saveConfig()">Carregar Dados</button>
+    <p class="help-text">
+      Sua planilha precisa estar com acesso <strong>"Qualquer pessoa com o link"</strong>.<br>
+      Veja como obter a API Key: <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent)">Google Cloud Console</a>
+    </p>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="header-icon">📊</div>
+  <div class="header-text">
+    <h1>Quadro Demonstrativo de Pessoal — ECIT</h1>
+    <span>Painel de Consulta • 2026</span>
+  </div>
+  <div class="header-right">
+    <div id="status-badge">
+      <span id="status-dot"></span>
+      <span id="status-text">Aguardando configuração</span>
+    </div>
+    <button class="btn-export" onclick="showConfig()" style="font-size:13px;">⚙️</button>
+  </div>
+</header>
+
+<!-- STATS BAR -->
+<div id="stats-bar">
+  <div class="stat-item"><div class="val" id="st-total">—</div><div class="lbl">Registros</div></div>
+  <div class="stat-item"><div class="val" id="st-profs">—</div><div class="lbl">Docentes</div></div>
+  <div class="stat-item"><div class="val" id="st-escolas">—</div><div class="lbl">Escolas</div></div>
+  <div class="stat-item"><div class="val" id="st-gres">—</div><div class="lbl">GREs</div></div>
+  <div class="stat-item"><div class="val" id="st-municipios">—</div><div class="lbl">Municípios</div></div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside>
+    <div class="filter-title">🔍 Filtros</div>
+
+    <div class="filter-group">
+      <label>GRE</label>
+      <select id="f-gre" onchange="applyFilters()">
+        <option value="">Todas as GREs</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label>Município</label>
+      <select id="f-municipio" onchange="applyFilters()">
+        <option value="">Todos os Municípios</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label>Escola</label>
+      <select id="f-escola" onchange="applyFilters()">
+        <option value="">Todas as Escolas</option>
+      </select>
+    </div>
+
+    <div class="filter-title">👤 Docente</div>
+
+    <div class="filter-group">
+      <div class="search-wrap">
+        <span class="icon">🔎</span>
+        <input type="text" id="f-professor" placeholder="Nome do professor..." oninput="applyFilters()"/>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label>Componente Curricular</label>
+      <select id="f-componente" onchange="applyFilters()">
+        <option value="">Todos os Componentes</option>
+      </select>
+    </div>
+
+    <div class="filter-title">📚 Turma</div>
+
+    <div class="filter-group">
+      <label>Série</label>
+      <select id="f-serie" onchange="applyFilters()">
+        <option value="">Todas as Séries</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label>Turma</label>
+      <select id="f-turma" onchange="applyFilters()">
+        <option value="">Todas as Turmas</option>
+      </select>
+    </div>
+
+    <button class="btn-clear" onclick="clearFilters()">✕ Limpar Filtros</button>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <div id="loading" style="display:none">
+      <div class="spinner"></div>
+      <div>Carregando dados da planilha...</div>
+    </div>
+
+    <div id="content" style="display:none">
+      <div class="toolbar">
+        <div class="view-toggle">
+          <button class="view-btn active" id="btn-cards" onclick="setView('cards')">⊞ Cards</button>
+          <button class="view-btn" id="btn-table" onclick="setView('table')">☰ Tabela</button>
+        </div>
+        <button class="btn-export" onclick="exportCSV()">⬇ Exportar CSV</button>
+        <div class="result-count" id="result-count"></div>
+      </div>
+
+      <!-- CARDS -->
+      <div id="cards-view"></div>
+
+      <!-- TABLE -->
+      <div id="table-view">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th onclick="sortBy(0)">GRE</th>
+                <th onclick="sortBy(1)">Município</th>
+                <th onclick="sortBy(2)">Escola</th>
+                <th onclick="sortBy(3)">Docente</th>
+                <th onclick="sortBy(4)">Função</th>
+                <th onclick="sortBy(5)">Vínculo</th>
+                <th onclick="sortBy(6)">Componente</th>
+                <th onclick="sortBy(7)">Série</th>
+                <th onclick="sortBy(8)">Turma</th>
+                <th onclick="sortBy(9)">Etapa</th>
+                <th onclick="sortBy(10)">CH</th>
+              </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────
+let SHEET_ID = localStorage.getItem('ecit_sheet_id') || '';
+let API_KEY  = localStorage.getItem('ecit_api_key')  || '';
+const SHEET_NAME = 'CONSOLIDADO';
+
+// Colunas da planilha consolidada (índice base 0)
+const COL = {
+  ARQUIVO: 0, GRE: 1, MUNICIPIO: 2, INEP: 3, ESCOLA: 4,
+  DOCENTE: 5, CPF: 6, MATRICULA: 7, FORMACAO: 8,
+  AUT_GEPPE: 9, REGIME_ESP: 10, VINCULO: 11,
+  ANO_INICIO: 12, FUNCAO: 13, JORNADA: 14,
+  SEMESTRE: 15, TURNO: 16, ETAPA: 17, CURSO: 18,
+  ESTRUTURA: 19, SERIE: 20, TURMA: 21,
+  MULTIPLA: 22, COMPONENTE: 23, CH_MATRIZ: 24, CH_FLEX: 25
+};
+
+// ─── STATE ────────────────────────────────────────────────
+let allData = [];
+let filteredData = [];
+let currentView = 'cards';
+let currentPage = 1;
+const PAGE_SIZE = 24;
+let sortCol = -1, sortAsc = true;
+
+// ─── INIT ─────────────────────────────────────────────────
+window.onload = () => {
+  if (SHEET_ID && API_KEY) {
+    document.getElementById('config-overlay').style.display = 'none';
+    document.getElementById('input-sheet-id').value = SHEET_ID;
+    document.getElementById('input-api-key').value = API_KEY;
+    loadData();
+  } else {
+    document.getElementById('input-sheet-id').value = SHEET_ID;
+    document.getElementById('input-api-key').value = API_KEY;
+  }
+};
+
+function showConfig() {
+  document.getElementById('config-overlay').style.display = 'flex';
+}
+
+function saveConfig() {
+  SHEET_ID = document.getElementById('input-sheet-id').value.trim();
+  API_KEY  = document.getElementById('input-api-key').value.trim();
+  if (!SHEET_ID || !API_KEY) { alert('Preencha os dois campos.'); return; }
+  localStorage.setItem('ecit_sheet_id', SHEET_ID);
+  localStorage.setItem('ecit_api_key', API_KEY);
+  document.getElementById('config-overlay').style.display = 'none';
+  loadData();
+}
+
+// ─── LOAD DATA ────────────────────────────────────────────
+async function loadData() {
+  setStatus('loading', 'Carregando...');
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('content').style.display = 'none';
+
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(SHEET_NAME)}?key=${API_KEY}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || 'Erro ao acessar planilha');
+    }
+    const json = await res.json();
+    const rows = json.values || [];
+    if (rows.length < 2) throw new Error('Planilha vazia ou sem dados na aba CONSOLIDADO');
+
+    // Pula a linha de cabeçalho
+    allData = rows.slice(1).filter(r => r[COL.DOCENTE] && r[COL.DOCENTE].toString().trim() !== '');
+
+    populateFilters();
+    updateStats(allData);
+    applyFilters();
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    setStatus('ok', `${allData.length.toLocaleString('pt-BR')} registros`);
+
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    setStatus('', `Erro: ${e.message}`);
+    alert(`Erro ao carregar dados:\n${e.message}\n\nVerifique o ID da planilha e a API Key.`);
+    showConfig();
+  }
+}
+
+// ─── STATUS ───────────────────────────────────────────────
+function setStatus(type, msg) {
+  const dot = document.getElementById('status-dot');
+  dot.className = type;
+  document.getElementById('status-text').textContent = msg;
+}
+
+// ─── STATS ────────────────────────────────────────────────
+function updateStats(data) {
+  document.getElementById('st-total').textContent = data.length.toLocaleString('pt-BR');
+  document.getElementById('st-profs').textContent = new Set(data.map(r => r[COL.CPF] || r[COL.DOCENTE])).size.toLocaleString('pt-BR');
+  document.getElementById('st-escolas').textContent = new Set(data.map(r => r[COL.ESCOLA])).size.toLocaleString('pt-BR');
+  document.getElementById('st-gres').textContent = new Set(data.map(r => r[COL.GRE])).size.toLocaleString('pt-BR');
+  document.getElementById('st-municipios').textContent = new Set(data.map(r => r[COL.MUNICIPIO])).size.toLocaleString('pt-BR');
+}
+
+// ─── POPULATE FILTERS ─────────────────────────────────────
+function populateFilters() {
+  const fill = (id, colIdx, currentVal) => {
+    const sel = document.getElementById(id);
+    const first = sel.options[0];
+    sel.innerHTML = '';
+    sel.appendChild(first);
+    const vals = [...new Set(allData.map(r => (r[colIdx]||'').trim()))].filter(Boolean).sort();
+    vals.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      if (v === currentVal) o.selected = true;
+      sel.appendChild(o);
+    });
+  };
+  fill('f-gre', COL.GRE);
+  fill('f-municipio', COL.MUNICIPIO);
+  fill('f-escola', COL.ESCOLA);
+  fill('f-componente', COL.COMPONENTE);
+  fill('f-serie', COL.SERIE);
+  fill('f-turma', COL.TURMA);
+}
+
+// ─── FILTERS ──────────────────────────────────────────────
+function applyFilters() {
+  const gre       = document.getElementById('f-gre').value;
+  const municipio = document.getElementById('f-municipio').value;
+  const escola    = document.getElementById('f-escola').value;
+  const prof      = document.getElementById('f-professor').value.toLowerCase();
+  const comp      = document.getElementById('f-componente').value;
+  const serie     = document.getElementById('f-serie').value;
+  const turma     = document.getElementById('f-turma').value;
+
+  filteredData = allData.filter(r => {
+    if (gre       && (r[COL.GRE]||'').trim() !== gre) return false;
+    if (municipio && (r[COL.MUNICIPIO]||'').trim() !== municipio) return false;
+    if (escola    && (r[COL.ESCOLA]||'').trim() !== escola) return false;
+    if (comp      && (r[COL.COMPONENTE]||'').trim() !== comp) return false;
+    if (serie     && (r[COL.SERIE]||'').trim() !== serie) return false;
+    if (turma     && (r[COL.TURMA]||'').trim() !== turma) return false;
+    if (prof      && !(r[COL.DOCENTE]||'').toLowerCase().includes(prof)) return false;
+    return true;
+  });
+
+  if (sortCol >= 0) doSort();
+  currentPage = 1;
+  render();
+  updateDependentFilters();
+}
+
+function updateDependentFilters() {
+  // Atualiza contagens nos filtros conforme dados filtrados
+}
+
+function clearFilters() {
+  ['f-gre','f-municipio','f-escola','f-componente','f-serie','f-turma'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('f-professor').value = '';
+  applyFilters();
+}
+
+// ─── SORT ─────────────────────────────────────────────────
+const TABLE_COLS = [COL.GRE, COL.MUNICIPIO, COL.ESCOLA, COL.DOCENTE, COL.FUNCAO, COL.VINCULO, COL.COMPONENTE, COL.SERIE, COL.TURMA, COL.ETAPA, COL.CH_MATRIZ];
+
+function sortBy(idx) {
+  if (sortCol === idx) sortAsc = !sortAsc;
+  else { sortCol = idx; sortAsc = true; }
+  doSort();
+  render();
+}
+
+function doSort() {
+  const col = TABLE_COLS[sortCol] ?? sortCol;
+  filteredData.sort((a,b) => {
+    const va = (a[col]||'').toString();
+    const vb = (b[col]||'').toString();
+    return sortAsc ? va.localeCompare(vb, 'pt-BR') : vb.localeCompare(va, 'pt-BR');
+  });
+}
+
+// ─── RENDER ───────────────────────────────────────────────
+function setView(v) {
+  currentView = v; currentPage = 1;
+  document.getElementById('btn-cards').classList.toggle('active', v==='cards');
+  document.getElementById('btn-table').classList.toggle('active', v==='table');
+  document.getElementById('cards-view').style.display = v==='cards' ? 'grid' : 'none';
+  document.getElementById('table-view').style.display = v==='table' ? 'block' : 'none';
+  render();
+}
+
+function render() {
+  const total = filteredData.length;
+  const pages = Math.ceil(total / PAGE_SIZE);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageData = filteredData.slice(start, start + PAGE_SIZE);
+
+  document.getElementById('result-count').innerHTML =
+    `<strong>${total.toLocaleString('pt-BR')}</strong> registros encontrados`;
+
+  if (currentView === 'cards') renderCards(pageData);
+  else renderTable(pageData);
+
+  renderPagination(pages);
+}
+
+// ── CARDS ─────────────────────────────────────────────────
+function renderCards(data) {
+  const container = document.getElementById('cards-view');
+
+  if (data.length === 0) {
+    container.innerHTML = `<div class="empty" style="grid-column:1/-1">
+      <div class="icon">🔍</div>
+      <div>Nenhum resultado encontrado</div>
+    </div>`;
+    return;
+  }
+
+  // Agrupa por professor (CPF ou nome)
+  const byProf = {};
+  data.forEach(r => {
+    const key = r[COL.CPF] || r[COL.DOCENTE];
+    if (!byProf[key]) byProf[key] = [];
+    byProf[key].push(r);
+  });
+
+  container.innerHTML = Object.entries(byProf).map(([key, rows]) => {
+    const r = rows[0];
+    const nome = (r[COL.DOCENTE]||'').trim();
+    const initials = nome.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+    const componentes = [...new Set(rows.map(x => (x[COL.COMPONENTE]||'').trim()).filter(Boolean))];
+    const turmas = [...new Set(rows.map(x => `${x[COL.SERIE]||''} ${x[COL.TURMA]||''}`.trim()).filter(Boolean))];
+    const vinculo = (r[COL.VINCULO]||'').trim();
+    const funcao  = (r[COL.FUNCAO]||'').trim();
+
+    return `<div class="prof-card">
+      <div class="card-header">
+        <div class="card-avatar">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div class="card-name">${nome}</div>
+          <div class="card-meta">
+            <span>${funcao}</span>
+            <span>•</span>
+            <span>${r[COL.JORNADA]||''}</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-row">
+          <span class="lbl">GRE</span>
+          <span class="val">${r[COL.GRE]||'—'}</span>
+        </div>
+        <div class="card-row">
+          <span class="lbl">Escola</span>
+          <span class="val">${r[COL.ESCOLA]||'—'}</span>
+        </div>
+        <div class="card-row">
+          <span class="lbl">Município</span>
+          <span class="val">${r[COL.MUNICIPIO]||'—'}</span>
+        </div>
+        <div class="card-row">
+          <span class="lbl">Formação</span>
+          <span class="val">${r[COL.FORMACAO]||'—'}</span>
+        </div>
+        <div class="card-row">
+          <span class="lbl">Matrícula</span>
+          <span class="val">${r[COL.MATRICULA]||'—'}</span>
+        </div>
+      </div>
+      <div class="card-footer">
+        ${componentes.map(c => `<span class="tag">${c}</span>`).join('')}
+        ${turmas.slice(0,6).map(t => `<span class="tag green">${t}</span>`).join('')}
+        ${vinculo ? `<span class="tag orange">${vinculo}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── TABLE ─────────────────────────────────────────────────
+function renderTable(data) {
+  const tbody = document.getElementById('table-body');
+  if (data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--muted)">Nenhum resultado encontrado</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.map(r => `<tr>
+    <td title="${r[COL.GRE]||''}">${r[COL.GRE]||'—'}</td>
+    <td title="${r[COL.MUNICIPIO]||''}">${r[COL.MUNICIPIO]||'—'}</td>
+    <td title="${r[COL.ESCOLA]||''}">${r[COL.ESCOLA]||'—'}</td>
+    <td title="${r[COL.DOCENTE]||''}">${r[COL.DOCENTE]||'—'}</td>
+    <td title="${r[COL.FUNCAO]||''}">${r[COL.FUNCAO]||'—'}</td>
+    <td><span class="tag orange">${r[COL.VINCULO]||'—'}</span></td>
+    <td title="${r[COL.COMPONENTE]||''}">${r[COL.COMPONENTE]||'—'}</td>
+    <td>${r[COL.SERIE]||'—'}</td>
+    <td>${r[COL.TURMA]||'—'}</td>
+    <td title="${r[COL.ETAPA]||''}">${(r[COL.ETAPA]||'—').substring(0,30)}</td>
+    <td>${r[COL.CH_MATRIZ]||'—'}</td>
+  </tr>`).join('');
+}
+
+// ── PAGINATION ────────────────────────────────────────────
+function renderPagination(pages) {
+  const el = document.getElementById('pagination');
+  if (pages <= 1) { el.innerHTML=''; return; }
+
+  let html = `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>`;
+
+  const range = [];
+  for (let i=1;i<=pages;i++) {
+    if (i===1||i===pages||Math.abs(i-currentPage)<=2) range.push(i);
+    else if (range[range.length-1]!=='…') range.push('…');
+  }
+
+  range.forEach(p => {
+    if (p==='…') html += `<span style="color:var(--muted);padding:0 4px">…</span>`;
+    else html += `<button class="page-btn ${p===currentPage?'active':''}" onclick="goPage(${p})">${p}</button>`;
+  });
+
+  html += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===pages?'disabled':''}>›</button>`;
+  el.innerHTML = html;
+}
+
+function goPage(p) {
+  currentPage = p;
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// ── EXPORT CSV ────────────────────────────────────────────
+function exportCSV() {
+  const headers = ['GRE','Município','INEP','Escola','Docente','CPF','Matrícula','Formação',
+    'Aut.GEPPE','Regime Esp.','Vínculo','Ano Início','Função','Jornada','Semestre',
+    'Turno','Etapa','Curso','Estrutura','Série','Turma','Múltipla Lotação','Componente','CH Matriz','CH Flex'];
+
+  const rows = [headers, ...filteredData.map(r => r.slice(1))]; // remove coluna ARQUIVO_ORIGEM
+  const csv = rows.map(r => r.map(c => `"${(c||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ecit_pessoal_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+</script>
+</body>
+</html>
