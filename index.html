@@ -607,9 +607,7 @@
 
 <script>
 // ─── CONFIG ───────────────────────────────────────────────
-const SHEET_ID = '1ppWEypYFtu4V93gsPFgo1RC7AQA-NZE_9LSvyMPmGsw';
-const GID      = '0'; // gid da aba CONSOLIDADO — ajuste se necessário
-const CSV_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+const API_URL = 'https://script.google.com/macros/s/AKfycbwNig7dcLxwfVW13tghMHYD3_1yussF5Bl3nmoyMtb5rCNixQBIZEVtlodU8LewxF5Q/exec';
 
 // Colunas da planilha consolidada (índice base 0)
 const COL = {
@@ -633,28 +631,6 @@ let sortCol = -1, sortAsc = true;
 // ─── INIT ─────────────────────────────────────────────────
 window.onload = () => loadData();
 
-// ─── PARSE CSV ────────────────────────────────────────────
-function parseCSV(text) {
-  const rows = [];
-  let row = [], cell = '', inQuote = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (inQuote) {
-      if (ch === '"' && text[i+1] === '"') { cell += '"'; i++; }
-      else if (ch === '"') inQuote = false;
-      else cell += ch;
-    } else {
-      if (ch === '"') { inQuote = true; }
-      else if (ch === ',') { row.push(cell); cell = ''; }
-      else if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
-      else if (ch === '\r') { /* ignora */ }
-      else cell += ch;
-    }
-  }
-  if (cell || row.length) { row.push(cell); rows.push(row); }
-  return rows;
-}
-
 // ─── LOAD DATA ────────────────────────────────────────────
 async function loadData() {
   setStatus('loading', 'Carregando...');
@@ -662,12 +638,11 @@ async function loadData() {
   document.getElementById('content').style.display = 'none';
 
   try {
-    const res = await fetch(CSV_URL);
-    if (!res.ok) throw new Error(`HTTP ${res.status} — verifique se a planilha está pública`);
-    const text = await res.text();
-    const rows = parseCSV(text);
+    const res = await fetch(API_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rows = await res.json();
 
-    if (rows.length < 2) throw new Error('Planilha vazia ou aba CONSOLIDADO não encontrada');
+    if (!Array.isArray(rows) || rows.length < 2) throw new Error('Dados inválidos ou aba CONSOLIDADO vazia');
 
     // Pula a linha de cabeçalho
     allData = rows.slice(1).filter(r => r[COL.DOCENTE] && r[COL.DOCENTE].toString().trim() !== '');
@@ -681,7 +656,6 @@ async function loadData() {
     setStatus('ok', `${allData.length.toLocaleString('pt-BR')} registros`);
 
   } catch(e) {
-    document.getElementById('loading').style.display = 'none';
     setStatus('', `Erro: ${e.message}`);
     document.getElementById('loading').style.display = 'flex';
     document.getElementById('loading').innerHTML = `
