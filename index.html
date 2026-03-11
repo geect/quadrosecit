@@ -683,30 +683,38 @@ function updateStats(data) {
   document.getElementById('st-municipios').textContent = new Set(data.map(r => String(r[COL.MUNICIPIO]||''))).size.toLocaleString('pt-BR');
 }
 
-// ─── POPULATE FILTERS ─────────────────────────────────────
-function populateFilters() {
-  const fill = (id, colIdx, currentVal) => {
-    const sel = document.getElementById(id);
-    const first = sel.options[0];
-    sel.innerHTML = '';
-    sel.appendChild(first);
-    const vals = [...new Set(allData.map(r => String(r[colIdx]||'').trim()))].filter(Boolean).sort();
-    vals.forEach(v => {
-      const o = document.createElement('option');
-      o.value = v; o.textContent = v;
-      if (v === currentVal) o.selected = true;
-      sel.appendChild(o);
-    });
-  };
-  fill('f-gre', COL.GRE);
-  fill('f-municipio', COL.MUNICIPIO);
-  fill('f-escola', COL.ESCOLA);
-  fill('f-componente', COL.COMPONENTE);
-  fill('f-serie', COL.SERIE);
-  fill('f-turma', COL.TURMA);
+// ─── HELPERS ──────────────────────────────────────────────
+const s = (v) => String(v||'').trim();
+
+// Preenche um <select> com valores únicos de um subconjunto de dados
+function fillSelect(id, colIdx, subset, keepVal) {
+  const sel = document.getElementById(id);
+  const first = sel.options[0];
+  sel.innerHTML = '';
+  sel.appendChild(first);
+  const vals = [...new Set(subset.map(r => s(r[colIdx])))].filter(Boolean).sort((a,b) => a.localeCompare(b,'pt-BR'));
+  vals.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    if (v === keepVal) o.selected = true;
+    sel.appendChild(o);
+  });
+  // Se o valor anterior não existe mais no novo conjunto, reseta
+  if (keepVal && !vals.includes(keepVal)) sel.value = '';
 }
 
-// ─── FILTERS ──────────────────────────────────────────────
+// ─── POPULATE FILTROS INICIAIS (com todos os dados) ───────
+function populateFilters() {
+  fillSelect('f-gre',        COL.GRE,        allData, '');
+  fillSelect('f-municipio',  COL.MUNICIPIO,  allData, '');
+  fillSelect('f-escola',     COL.ESCOLA,     allData, '');
+  fillSelect('f-componente', COL.COMPONENTE, allData, '');
+  fillSelect('f-serie',      COL.SERIE,      allData, '');
+  fillSelect('f-turma',      COL.TURMA,      allData, '');
+}
+
+// ─── FILTROS EM CASCATA ────────────────────────────────────
+// Cada nível filtra o anterior para popular o próximo
 function applyFilters() {
   const gre       = document.getElementById('f-gre').value;
   const municipio = document.getElementById('f-municipio').value;
@@ -716,25 +724,35 @@ function applyFilters() {
   const serie     = document.getElementById('f-serie').value;
   const turma     = document.getElementById('f-turma').value;
 
+  // Aplica filtros progressivos para cascata
+  const aposGre  = gre  ? allData.filter(r => s(r[COL.GRE]) === gre) : allData;
+  const aposMun  = municipio ? aposGre.filter(r => s(r[COL.MUNICIPIO]) === municipio) : aposGre;
+  const aposEsc  = escola    ? aposMun.filter(r => s(r[COL.ESCOLA])    === escola)    : aposMun;
+  const aposComp = comp      ? aposEsc.filter(r => s(r[COL.COMPONENTE]) === comp)     : aposEsc;
+  const aposSer  = serie     ? aposComp.filter(r => s(r[COL.SERIE])    === serie)     : aposComp;
+
+  // Repopula cada filtro com as opções disponíveis dado o filtro anterior
+  fillSelect('f-municipio',  COL.MUNICIPIO,  aposGre,  municipio);
+  fillSelect('f-escola',     COL.ESCOLA,     aposMun,  escola);
+  fillSelect('f-componente', COL.COMPONENTE, aposEsc,  comp);
+  fillSelect('f-serie',      COL.SERIE,      aposComp, serie);
+  fillSelect('f-turma',      COL.TURMA,      aposSer,  turma);
+
+  // Filtragem final completa
   filteredData = allData.filter(r => {
-    if (gre       && String(r[COL.GRE]||'').trim() !== gre) return false;
-    if (municipio && String(r[COL.MUNICIPIO]||'').trim() !== municipio) return false;
-    if (escola    && String(r[COL.ESCOLA]||'').trim() !== escola) return false;
-    if (comp      && String(r[COL.COMPONENTE]||'').trim() !== comp) return false;
-    if (serie     && String(r[COL.SERIE]||'').trim() !== serie) return false;
-    if (turma     && String(r[COL.TURMA]||'').trim() !== turma) return false;
-    if (prof      && !String(r[COL.DOCENTE]||'').toLowerCase().includes(prof)) return false;
+    if (gre       && s(r[COL.GRE])        !== gre)       return false;
+    if (municipio && s(r[COL.MUNICIPIO])  !== municipio) return false;
+    if (escola    && s(r[COL.ESCOLA])     !== escola)     return false;
+    if (comp      && s(r[COL.COMPONENTE]) !== comp)       return false;
+    if (serie     && s(r[COL.SERIE])      !== serie)      return false;
+    if (turma     && s(r[COL.TURMA])      !== turma)      return false;
+    if (prof      && !s(r[COL.DOCENTE]).toLowerCase().includes(prof)) return false;
     return true;
   });
 
   if (sortCol >= 0) doSort();
   currentPage = 1;
   render();
-  updateDependentFilters();
-}
-
-function updateDependentFilters() {
-  // Atualiza contagens nos filtros conforme dados filtrados
 }
 
 function clearFilters() {
@@ -742,6 +760,8 @@ function clearFilters() {
     document.getElementById(id).value = '';
   });
   document.getElementById('f-professor').value = '';
+  // Restaura todos os selects com dados completos
+  populateFilters();
   applyFilters();
 }
 
@@ -804,19 +824,27 @@ function renderCards(data) {
   // Agrupa por professor (CPF ou nome)
   const byProf = {};
   data.forEach(r => {
-    const key = r[COL.CPF] || r[COL.DOCENTE];
+    const key = s(r[COL.CPF]) || s(r[COL.DOCENTE]);
     if (!byProf[key]) byProf[key] = [];
     byProf[key].push(r);
   });
 
   container.innerHTML = Object.entries(byProf).map(([key, rows]) => {
     const r = rows[0];
-    const nome = String(r[COL.DOCENTE]||'').trim();
+    const nome = s(r[COL.DOCENTE]);
     const initials = nome.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
-    const componentes = [...new Set(rows.map(x => String(x[COL.COMPONENTE]||'').trim()).filter(Boolean))];
-    const turmas = [...new Set(rows.map(x => `${x[COL.SERIE]||''} ${x[COL.TURMA]||''}`.trim()).filter(Boolean))];
-    const vinculo = String(r[COL.VINCULO]||'').trim();
-    const funcao  = String(r[COL.FUNCAO]||'').trim();
+    const componentes = [...new Set(rows.map(x => s(x[COL.COMPONENTE])).filter(Boolean))];
+    const turmas      = [...new Set(rows.map(x => `${s(x[COL.SERIE])} ${s(x[COL.TURMA])}`.trim()).filter(Boolean))];
+    const cursos      = [...new Set(rows.map(x => s(x[COL.CURSO])).filter(Boolean))];
+    const matrizes    = [...new Set(rows.map(x => s(x[COL.ESTRUTURA])).filter(Boolean))];
+    const vinculo     = s(r[COL.VINCULO]);
+    const funcao      = s(r[COL.FUNCAO]);
+
+    // Somatória da CH — tenta CH_FLEX primeiro, senão CH_MATRIZ
+    const chTotal = rows.reduce((acc, x) => {
+      const v = parseFloat(String(x[COL.CH_FLEX]||x[COL.CH_MATRIZ]||'0').replace(',','.')) || 0;
+      return acc + v;
+    }, 0);
 
     return `<div class="prof-card">
       <div class="card-header">
@@ -826,35 +854,47 @@ function renderCards(data) {
           <div class="card-meta">
             <span>${funcao}</span>
             <span>•</span>
-            <span>${r[COL.JORNADA]||''}</span>
+            <span>${s(r[COL.JORNADA])}</span>
           </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--accent)">${chTotal}h</div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">CH Total</div>
         </div>
       </div>
       <div class="card-body">
         <div class="card-row">
           <span class="lbl">GRE</span>
-          <span class="val">${r[COL.GRE]||'—'}</span>
+          <span class="val">${s(r[COL.GRE])||'—'}</span>
         </div>
         <div class="card-row">
           <span class="lbl">Escola</span>
-          <span class="val">${r[COL.ESCOLA]||'—'}</span>
+          <span class="val">${s(r[COL.ESCOLA])||'—'}</span>
         </div>
         <div class="card-row">
           <span class="lbl">Município</span>
-          <span class="val">${r[COL.MUNICIPIO]||'—'}</span>
+          <span class="val">${s(r[COL.MUNICIPIO])||'—'}</span>
         </div>
         <div class="card-row">
           <span class="lbl">Formação</span>
-          <span class="val">${r[COL.FORMACAO]||'—'}</span>
+          <span class="val">${s(r[COL.FORMACAO])||'—'}</span>
         </div>
         <div class="card-row">
           <span class="lbl">Matrícula</span>
-          <span class="val">${r[COL.MATRICULA]||'—'}</span>
+          <span class="val">${s(r[COL.MATRICULA])||'—'}</span>
         </div>
+        ${cursos.length ? `<div class="card-row">
+          <span class="lbl">Curso</span>
+          <span class="val">${cursos.join(', ')}</span>
+        </div>` : ''}
+        ${matrizes.length ? `<div class="card-row">
+          <span class="lbl">Matriz</span>
+          <span class="val">${matrizes.join(', ')}</span>
+        </div>` : ''}
       </div>
       <div class="card-footer">
         ${componentes.map(c => `<span class="tag">${c}</span>`).join('')}
-        ${turmas.slice(0,6).map(t => `<span class="tag green">${t}</span>`).join('')}
+        ${turmas.slice(0,8).map(t => `<span class="tag green">${t}</span>`).join('')}
         ${vinculo ? `<span class="tag orange">${vinculo}</span>` : ''}
       </div>
     </div>`;
